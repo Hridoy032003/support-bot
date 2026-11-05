@@ -20,18 +20,18 @@ export async function POST(request: Request) {
     if (chatType !== "private") {
       await sendTelegramMessage(
         chatId,
-        "⚠️ Please DM me directly (not in this group) and send /start there so I can register you for personal alerts."
+        "🙅‍♂️ Please DM me directly (not in this group 👥) and send /start there so I can register you for personal alerts."
       );
     } else if (username) {
       registerTelegramUser(username, chatId);
       await sendTelegramMessage(
         chatId,
-        "✅ You're registered. You'll get a DM here if an alert gets escalated to you."
+        "✅ You're all set! 🎉 You'll get a DM here 📩 if an alert ever gets escalated to you."
       );
     } else {
       await sendTelegramMessage(
         chatId,
-        "⚠️ You need a Telegram username set (Settings → Username) before I can DM you alerts. Set one, then send /start again."
+        "🆔 You need a Telegram username set (Settings → Username) before I can DM you alerts. Set one, then send /start again 🔁"
       );
     }
   }

@@ -82,8 +82,9 @@ export async function checkAndFireEscalations(): Promise<number> {
     if (now < dueAt) continue;
 
     const text = [
-      "⏰ <b>ESCALATION</b> — no reply in 5 min",
+      "🚨⏰ <b>ESCALATION</b> — no reply in 5 min 😬",
       `💬 ${escapeHtml(item.text)}`,
+      "👀 Needs someone's eyes on it, ASAP!",
       item.link ? `🔗 <a href="${item.link}">Open channel</a>` : "",
     ]
       .filter(Boolean)

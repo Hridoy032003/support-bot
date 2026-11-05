@@ -26,12 +26,12 @@ send_telegram() {
 
 if [ "$HTTP_CODE" = "200" ]; then
   if [ "$PREV_STATE" = "down" ]; then
-    send_telegram "✅ <b>autobot is back UP</b>%0AHealth check responded 200 again."
+    send_telegram "🟢🎉 <b>autobot is back UP</b>%0AHealth check responded 200 again. Phew! 😅"
     echo "up" > "$STATE_FILE"
   fi
 else
   if [ "$PREV_STATE" = "up" ]; then
-    send_telegram "🔴 <b>autobot is DOWN</b>%0AHealth check at ${HEALTH_URL} returned HTTP ${HTTP_CODE}."
+    send_telegram "🔴💀 <b>autobot is DOWN</b>%0AHealth check at ${HEALTH_URL} returned HTTP ${HTTP_CODE}. 🆘"
     echo "down" > "$STATE_FILE"
   fi
 fi
