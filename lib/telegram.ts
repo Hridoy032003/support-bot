@@ -5,7 +5,10 @@ export function escapeHtml(input: string): string {
   return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export async function sendTelegramAlert(text: string): Promise<boolean> {
+export async function sendTelegramAlert(
+  text: string,
+  options?: { threadId?: string }
+): Promise<boolean> {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     console.error("Telegram not configured: missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID");
     return false;
@@ -18,6 +21,7 @@ export async function sendTelegramAlert(text: string): Promise<boolean> {
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,
+      ...(options?.threadId ? { message_thread_id: Number(options.threadId) } : {}),
     }),
   });
   if (!res.ok) {
