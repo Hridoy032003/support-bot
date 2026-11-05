@@ -1,5 +1,6 @@
 import { escapeHtml, sendTelegramAlert } from "@/lib/telegram";
 import { addEvent } from "@/lib/events";
+import { ESCALATION_TRIO, addPendingEscalation, markRepliedForChannel } from "@/lib/escalations";
 
 const CHAT_WEBHOOK_SECRET = process.env.CLICKUP_CHAT_WEBHOOK_SECRET ?? "";
 const CLICKUP_API_TOKEN = process.env.CLICKUP_API_TOKEN ?? "";
@@ -77,6 +78,18 @@ export async function POST(request: Request) {
     : "";
 
   const mentionedUsernames = extractMentionedUsernames(data.comment);
+  const matchesEscalationTrio = (name: string): boolean => {
+    const lower = name.toLowerCase();
+    return ESCALATION_TRIO.some((trioName) => lower.includes(trioName));
+  };
+
+  if (matchesEscalationTrio(username)) {
+    markRepliedForChannel(channelId);
+  }
+  if (mentionedUsernames.some(matchesEscalationTrio)) {
+    addPendingEscalation({ channelId, messageId: String(data.id), text, link: channelLink });
+  }
+
   const onlyMentionsMutedUser =
     mentionedUsernames.length > 0 &&
     mentionedUsernames.every((name) => name.toLowerCase() === MUTED_SOLO_MENTION_USERNAME);

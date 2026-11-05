@@ -5,19 +5,20 @@ export function escapeHtml(input: string): string {
   return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export async function sendTelegramAlert(
+export async function sendTelegramMessage(
+  chatId: string | number,
   text: string,
   options?: { threadId?: string }
 ): Promise<boolean> {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.error("Telegram not configured: missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID");
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.error("Telegram not configured: missing TELEGRAM_BOT_TOKEN");
     return false;
   }
   const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: TELEGRAM_CHAT_ID,
+      chat_id: chatId,
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,
@@ -29,4 +30,15 @@ export async function sendTelegramAlert(
     return false;
   }
   return true;
+}
+
+export async function sendTelegramAlert(
+  text: string,
+  options?: { threadId?: string }
+): Promise<boolean> {
+  if (!TELEGRAM_CHAT_ID) {
+    console.error("Telegram not configured: missing TELEGRAM_CHAT_ID");
+    return false;
+  }
+  return sendTelegramMessage(TELEGRAM_CHAT_ID, text, options);
 }
