@@ -1,5 +1,6 @@
-import fs from "fs";
-import path from "path";
+import { desc, sql } from "drizzle-orm";
+import { getDb } from "@/db";
+import { events } from "@/db/schema";
 
 export type AlertEvent = {
   id: string;
@@ -11,34 +12,30 @@ export type AlertEvent = {
   delivered: boolean;
 };
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "events.json");
 const MAX_EVENTS = 200;
 
-function readAll(): AlertEvent[] {
+export async function addEvent(event: Omit<AlertEvent, "id" | "timestamp">): Promise<void> {
   try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-export function addEvent(event: Omit<AlertEvent, "id" | "timestamp">): void {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const events = readAll();
-    events.unshift({
+    const db = getDb();
+    await db.insert(events).values({
       ...event,
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: new Date().toISOString(),
     });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(events.slice(0, MAX_EVENTS), null, 2));
+    // keep only the newest MAX_EVENTS rows
+    await db.execute(
+      sql`DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY timestamp DESC LIMIT ${MAX_EVENTS})`
+    );
   } catch (err) {
     console.error("Failed to persist event:", err);
   }
 }
 
-export function getEvents(): AlertEvent[] {
-  return readAll();
+export async function getEvents(): Promise<AlertEvent[]> {
+  try {
+    const rows = await getDb().select().from(events).orderBy(desc(events.timestamp)).limit(MAX_EVENTS);
+    return rows.map((r) => ({ ...r, timestamp: r.timestamp.toISOString() }));
+  } catch (err) {
+    console.error("Failed to read events:", err);
+    return [];
+  }
 }

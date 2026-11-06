@@ -1,41 +1,29 @@
-import fs from "fs";
-import path from "path";
+import { sql } from "drizzle-orm";
+import { getDb } from "@/db";
+import { roster } from "@/db/schema";
 import { sendTelegramMessage } from "@/lib/telegram";
 
-type RosterEntry = { chatId: number; username: string; registeredAt: string };
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const ROSTER_FILE = path.join(DATA_DIR, "telegram-roster.json");
-
-function readRoster(): Record<string, RosterEntry> {
-  try {
-    return JSON.parse(fs.readFileSync(ROSTER_FILE, "utf-8"));
-  } catch {
-    return {};
-  }
+export async function registerTelegramUser(username: string, chatId: number): Promise<void> {
+  await getDb()
+    .insert(roster)
+    .values({ username: username.toLowerCase(), displayUsername: username, chatId })
+    .onConflictDoUpdate({
+      target: roster.username,
+      set: { displayUsername: username, chatId, registeredAt: sql`now()` },
+    });
 }
 
-function writeRoster(roster: Record<string, RosterEntry>): void {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(ROSTER_FILE, JSON.stringify(roster, null, 2));
+export async function getChatId(username: string): Promise<number | undefined> {
+  const rows = await getDb()
+    .select({ chatId: roster.chatId })
+    .from(roster)
+    .where(sql`${roster.username} = ${username.toLowerCase()}`)
+    .limit(1);
+  return rows[0]?.chatId;
 }
 
-export function registerTelegramUser(username: string, chatId: number): void {
-  const roster = readRoster();
-  roster[username.toLowerCase()] = {
-    chatId,
-    username,
-    registeredAt: new Date().toISOString(),
-  };
-  writeRoster(roster);
-}
-
-export function getChatId(username: string): number | undefined {
-  return readRoster()[username.toLowerCase()]?.chatId;
-}
-
-export function getAllRegistered(): RosterEntry[] {
-  return Object.values(readRoster());
+export async function getAllRegistered() {
+  return getDb().select().from(roster);
 }
 
 export async function sendDmToUsers(
@@ -44,7 +32,7 @@ export async function sendDmToUsers(
 ): Promise<Array<{ username: string; delivered: boolean }>> {
   const results: Array<{ username: string; delivered: boolean }> = [];
   for (const username of usernames) {
-    const chatId = getChatId(username);
+    const chatId = await getChatId(username);
     const delivered = chatId ? await sendTelegramMessage(chatId, text) : false;
     results.push({ username, delivered });
   }

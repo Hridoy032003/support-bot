@@ -1,5 +1,6 @@
-import fs from "fs";
-import path from "path";
+import { and, eq, lte, sql } from "drizzle-orm";
+import { getDb } from "@/db";
+import { escalations } from "@/db/schema";
 import { escapeHtml } from "@/lib/telegram";
 import { sendDmToUsers } from "@/lib/telegram-roster";
 
@@ -12,75 +13,59 @@ const CLICKUP_TO_TELEGRAM_USERNAME: Record<string, string> = {
   mohit: "itz_mohit_king",
 };
 
-type Escalation = {
-  id: string;
+export async function addPendingEscalation(input: {
   channelId: string;
   messageId: string;
   text: string;
   link: string;
-  mentionedAt: string;
-  replied: boolean;
-  repliedAt?: string;
-  escalated: boolean;
-  escalatedAt?: string;
-};
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const FILE = path.join(DATA_DIR, "escalations.json");
-
-function readAll(): Escalation[] {
+  mentioned: string[];
+}): Promise<void> {
   try {
-    return JSON.parse(fs.readFileSync(FILE, "utf-8"));
-  } catch {
-    return [];
+    await getDb()
+      .insert(escalations)
+      .values({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...input });
+  } catch (err) {
+    console.error("Failed to add pending escalation:", err);
   }
 }
 
-function writeAll(items: Escalation[]): void {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(items, null, 2));
-}
-
-export function addPendingEscalation(input: {
-  channelId: string;
-  messageId: string;
-  text: string;
-  link: string;
-}): void {
-  const items = readAll();
-  items.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    ...input,
-    mentionedAt: new Date().toISOString(),
-    replied: false,
-    escalated: false,
-  });
-  writeAll(items.slice(-500));
-}
-
-export function markRepliedForChannel(channelId: string): void {
-  const items = readAll();
-  let changed = false;
-  for (const item of items) {
-    if (item.channelId === channelId && !item.replied && !item.escalated) {
-      item.replied = true;
-      item.repliedAt = new Date().toISOString();
-      changed = true;
-    }
+export async function markRepliedForChannel(channelId: string): Promise<void> {
+  try {
+    await getDb()
+      .update(escalations)
+      .set({ replied: true, repliedAt: new Date() })
+      .where(
+        and(
+          eq(escalations.channelId, channelId),
+          eq(escalations.replied, false),
+          eq(escalations.escalated, false)
+        )
+      );
+  } catch (err) {
+    console.error("Failed to mark escalations replied:", err);
   }
-  if (changed) writeAll(items);
 }
 
 export async function checkAndFireEscalations(): Promise<number> {
-  const items = readAll();
-  const now = Date.now();
-  let fired = 0;
+  const dueBefore = new Date(Date.now() - ESCALATION_WINDOW_MS);
 
-  for (const item of items) {
-    if (item.replied || item.escalated) continue;
-    const dueAt = new Date(item.mentionedAt).getTime() + ESCALATION_WINDOW_MS;
-    if (now < dueAt) continue;
+  // Atomically claim due escalations so overlapping checks never double-send.
+  const claimed = await getDb()
+    .update(escalations)
+    .set({ escalated: true, escalatedAt: new Date() })
+    .where(
+      and(
+        eq(escalations.replied, false),
+        eq(escalations.escalated, false),
+        lte(escalations.mentionedAt, dueBefore)
+      )
+    )
+    .returning();
 
+  for (const item of claimed) {
+    // DM only the people who were tagged; fall back to the whole trio if unknown.
+    const names = item.mentioned.length > 0 ? item.mentioned : ESCALATION_TRIO;
+    const telegramUsernames = names.map((name) => CLICKUP_TO_TELEGRAM_USERNAME[name] ?? name);
     const text = [
       "🚨⏰ <b>ESCALATION</b> — no reply in 5 min 😬",
       `💬 ${escapeHtml(item.text)}`,
@@ -89,16 +74,8 @@ export async function checkAndFireEscalations(): Promise<number> {
     ]
       .filter(Boolean)
       .join("\n");
-
-    const telegramUsernames = ESCALATION_TRIO.map(
-      (name) => CLICKUP_TO_TELEGRAM_USERNAME[name] ?? name
-    );
     await sendDmToUsers(telegramUsernames, text);
-    item.escalated = true;
-    item.escalatedAt = new Date().toISOString();
-    fired++;
   }
 
-  if (fired > 0) writeAll(items);
-  return fired;
+  return claimed.length;
 }

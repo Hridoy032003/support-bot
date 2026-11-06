@@ -84,10 +84,19 @@ export async function POST(request: Request) {
   };
 
   if (matchesEscalationTrio(username)) {
-    markRepliedForChannel(channelId);
+    await markRepliedForChannel(channelId);
   }
-  if (mentionedUsernames.some(matchesEscalationTrio)) {
-    addPendingEscalation({ channelId, messageId: String(data.id), text, link: channelLink });
+  const taggedTrio = ESCALATION_TRIO.filter((trioName) =>
+    mentionedUsernames.some((name) => name.toLowerCase().includes(trioName))
+  );
+  if (taggedTrio.length > 0) {
+    await addPendingEscalation({
+      channelId,
+      messageId: String(data.id),
+      text,
+      link: channelLink,
+      mentioned: taggedTrio,
+    });
   }
 
   const onlyMentionsMutedUser =
@@ -96,7 +105,7 @@ export async function POST(request: Request) {
 
   if (onlyMentionsMutedUser) {
     console.log(`Skipping Telegram alert: message only mentions @${MUTED_SOLO_MENTION_USERNAME}`);
-    addEvent({
+    await addEvent({
       source: "chat-message",
       author: username,
       text,
@@ -128,7 +137,7 @@ export async function POST(request: Request) {
 
   const threadId = resolveTopicThreadId(username);
   const delivered = await sendTelegramAlert(message, { threadId });
-  addEvent({
+  await addEvent({
     source: "chat-message",
     author: username,
     text,

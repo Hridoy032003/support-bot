@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       .join("\n");
 
     const delivered = await sendTelegramAlert(message);
-    addEvent({
+    await addEvent({
       source: "task-comment",
       author: username,
       text: commentText,

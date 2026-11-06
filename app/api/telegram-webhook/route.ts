@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         "🙅‍♂️ Please DM me directly (not in this group 👥) and send /start there so I can register you for personal alerts."
       );
     } else if (username) {
-      registerTelegramUser(username, chatId);
+      await registerTelegramUser(username, chatId);
       await sendTelegramMessage(
         chatId,
         "✅ You're all set! 🎉 You'll get a DM here 📩 if an alert ever gets escalated to you."
