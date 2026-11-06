@@ -39,5 +39,7 @@ export const roster = pgTable("telegram_roster", {
   username: text("username").primaryKey(),
   displayUsername: text("display_username").notNull(),
   chatId: bigint("chat_id", { mode: "number" }).notNull(),
+  // last day (YYYY-MM-DD, IST) the person is off; null = alerts on
+  dayOffUntil: text("day_off_until"),
   registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
 });

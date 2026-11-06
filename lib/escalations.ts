@@ -74,7 +74,8 @@ export async function checkAndFireEscalations(): Promise<number> {
     ]
       .filter(Boolean)
       .join("\n");
-    await sendDmToUsers(telegramUsernames, text);
+    const results = await sendDmToUsers(telegramUsernames, text);
+    console.log("Escalation DMs:", JSON.stringify(results));
   }
 
   return claimed.length;
