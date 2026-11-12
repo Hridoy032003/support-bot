@@ -69,7 +69,7 @@ export async function AssignedTasks({ email }: { email: string }) {
   const result = await getAssignedTasks(email);
 
   return (
-    <section className="mb-8 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60">
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Assigned to me</h2>
         <div className="flex items-center gap-3">
@@ -116,7 +116,7 @@ export async function AssignedTasks({ email }: { email: string }) {
 
 export function AssignedTasksSkeleton() {
   return (
-    <section className="mb-8 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60">
       <div className="border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-900 dark:border-zinc-800 dark:text-zinc-50">
         Assigned to me
       </div>
