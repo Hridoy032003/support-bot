@@ -1,13 +1,12 @@
+import Link from "next/link";
 import { getAssignedTasks, type AssignedTask } from "@/lib/clickup";
+import { dueDayDiff } from "@/lib/task-filters";
 
 const MAX_SHOWN = 8;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dueInfo(dueMs: number | null): { label: string; tone: "overdue" | "soon" | "normal" } | null {
   if (dueMs === null) return null;
-  const startOfToday = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })).getTime();
-  const dueDay = new Date(new Date(dueMs).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })).getTime();
-  const diff = Math.round((dueDay - startOfToday) / DAY_MS);
+  const diff = dueDayDiff(dueMs);
   if (diff < 0) return { label: `Overdue ${-diff}d`, tone: "overdue" };
   if (diff === 0) return { label: "Due today", tone: "soon" };
   if (diff === 1) return { label: "Due tomorrow", tone: "soon" };
@@ -23,7 +22,7 @@ const TONE: Record<string, string> = {
   normal: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
 };
 
-function TaskRow({ task }: { task: AssignedTask }) {
+export function TaskRow({ task }: { task: AssignedTask }) {
   const due = dueInfo(task.dueMs);
   return (
     <li>
@@ -62,7 +61,7 @@ function TaskRow({ task }: { task: AssignedTask }) {
   );
 }
 
-function Notice({ children }: { children: React.ReactNode }) {
+export function Notice({ children }: { children: React.ReactNode }) {
   return <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">{children}</p>;
 }
 
@@ -73,11 +72,16 @@ export async function AssignedTasks({ email }: { email: string }) {
     <section className="mb-8 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
         <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Assigned to me</h2>
-        {result.kind === "ok" && (
-          <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-            {result.tasks.length} open
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {result.kind === "ok" && (
+            <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+              {result.tasks.length} open
+            </span>
+          )}
+          <Link href="/tasks" className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+            View all &amp; filter →
+          </Link>
+        </div>
       </div>
 
       {result.kind === "not-configured" && (
