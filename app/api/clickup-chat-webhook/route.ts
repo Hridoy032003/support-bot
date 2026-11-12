@@ -1,5 +1,5 @@
 import { escapeHtml, sendTelegramAlert } from "@/lib/telegram";
-import { addEvent } from "@/lib/events";
+import { addEvent, eventViewUrl, newEventId } from "@/lib/events";
 import { ESCALATION_TRIO, addPendingEscalation, markRepliedForChannel } from "@/lib/escalations";
 
 const CHAT_WEBHOOK_SECRET = process.env.CLICKUP_CHAT_WEBHOOK_SECRET ?? "";
@@ -115,6 +115,9 @@ export async function POST(request: Request) {
     return new Response("OK", { status: 200 });
   }
 
+  const eventId = newEventId();
+  const viewUrl = eventViewUrl(eventId);
+  const viewLine = viewUrl ? `🖥 <a href="${viewUrl}">View here</a>` : "";
   const message = (
     isMikeAuthor(username)
       ? [
@@ -124,12 +127,14 @@ export async function POST(request: Request) {
           `💬 <b>Message:</b> ${escapeHtml(text)}`,
           "━━━━━━━━━━━━━━━",
           channelLink ? `🔗 <a href="${channelLink}">Open channel</a>` : "",
+          viewLine,
         ]
       : [
           "🔔 <b>New ClickUp Chat message</b>",
           `👤 ${escapeHtml(username)}`,
           `💬 ${escapeHtml(text)}`,
           channelLink ? `🔗 <a href="${channelLink}">Open channel</a>` : "",
+          viewLine,
         ]
   )
     .filter(Boolean)
@@ -138,6 +143,7 @@ export async function POST(request: Request) {
   const threadId = resolveTopicThreadId(username);
   const delivered = await sendTelegramAlert(message, { threadId });
   await addEvent({
+    id: eventId,
     source: "chat-message",
     author: username,
     text,

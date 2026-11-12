@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { escapeHtml, sendTelegramAlert } from "@/lib/telegram";
-import { addEvent } from "@/lib/events";
+import { addEvent, eventViewUrl, newEventId } from "@/lib/events";
 
 const CLICKUP_WEBHOOK_SECRET = process.env.CLICKUP_WEBHOOK_SECRET ?? "";
 
@@ -50,17 +50,21 @@ export async function POST(request: Request) {
     const username = history_items?.[0]?.user?.username ?? "Someone";
     const taskLink = task_id ? `https://app.clickup.com/t/${task_id}` : "";
 
+    const eventId = newEventId();
+    const viewUrl = eventViewUrl(eventId);
     const message = [
       "🔔 <b>New ClickUp comment</b>",
       `👤 ${escapeHtml(username)}`,
       `💬 ${escapeHtml(commentText)}`,
       taskLink ? `🔗 <a href="${taskLink}">Open task</a>` : "",
+      viewUrl ? `🖥 <a href="${viewUrl}">View here</a>` : "",
     ]
       .filter(Boolean)
       .join("\n");
 
     const delivered = await sendTelegramAlert(message);
     await addEvent({
+      id: eventId,
       source: "task-comment",
       author: username,
       text: commentText,

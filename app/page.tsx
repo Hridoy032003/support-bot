@@ -1,6 +1,8 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getEvents } from "@/lib/events";
+import { getSession } from "@/lib/session";
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -15,6 +17,8 @@ function timeAgo(iso: string): string {
 
 async function DashboardContent() {
   await connection();
+  const session = await getSession();
+  if (!session) redirect("/login");
   const events = await getEvents();
 
   return (
@@ -28,9 +32,16 @@ async function DashboardContent() {
             ClickUp → Telegram alert history
           </p>
         </div>
-        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-          {events.length} event{events.length === 1 ? "" : "s"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            {events.length} event{events.length === 1 ? "" : "s"}
+          </span>
+          <form action="/api/auth/logout" method="post">
+            <button type="submit" className="text-xs text-zinc-500 hover:underline dark:text-zinc-400">
+              Sign out ({session.email})
+            </button>
+          </form>
+        </div>
       </header>
 
       {events.length === 0 ? (
@@ -71,6 +82,12 @@ async function DashboardContent() {
               <p className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
                 {e.text}
               </p>
+              <a
+                href={`/m/${e.id}`}
+                className="mr-4 mt-2 inline-block text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                View →
+              </a>
               {e.link && (
                 <a
                   href={e.link}

@@ -1,4 +1,4 @@
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { events } from "@/db/schema";
 
@@ -14,12 +14,24 @@ export type AlertEvent = {
 
 const MAX_EVENTS = 200;
 
-export async function addEvent(event: Omit<AlertEvent, "id" | "timestamp">): Promise<void> {
+export function newEventId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Link to the in-app popup for an event, or "" when APP_BASE_URL isn't configured. */
+export function eventViewUrl(id: string): string {
+  const base = process.env.APP_BASE_URL?.replace(/\/$/, "");
+  return base ? `${base}/m/${id}` : "";
+}
+
+export async function addEvent(
+  event: Omit<AlertEvent, "id" | "timestamp"> & { id?: string }
+): Promise<void> {
   try {
     const db = getDb();
     await db.insert(events).values({
       ...event,
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: event.id ?? newEventId(),
     });
     // keep only the newest MAX_EVENTS rows
     await db.execute(
@@ -37,5 +49,15 @@ export async function getEvents(): Promise<AlertEvent[]> {
   } catch (err) {
     console.error("Failed to read events:", err);
     return [];
+  }
+}
+
+export async function getEventById(id: string): Promise<AlertEvent | null> {
+  try {
+    const rows = await getDb().select().from(events).where(eq(events.id, id)).limit(1);
+    return rows[0] ? { ...rows[0], timestamp: rows[0].timestamp.toISOString() } : null;
+  } catch (err) {
+    console.error("Failed to read event:", err);
+    return null;
   }
 }
