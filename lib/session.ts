@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 export const SESSION_COOKIE = "autobot_session";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export type Session = { email: string; name: string };
+export type Session = { email: string; name: string; picture?: string };
 
 function sign(payload: string): string {
   const secret = process.env.AUTH_SECRET ?? "";
@@ -43,7 +43,11 @@ export function verifySessionToken(token: string | undefined): Session | null {
     if (typeof data.exp !== "number" || data.exp < Date.now() / 1000) return null;
     // Re-check the allow-list so removing someone's email revokes their session.
     if (typeof data.email !== "string" || !isAllowedEmail(data.email)) return null;
-    return { email: data.email, name: String(data.name ?? data.email) };
+    return {
+      email: data.email,
+      name: String(data.name ?? data.email),
+      picture: typeof data.picture === "string" ? data.picture : undefined,
+    };
   } catch {
     return null;
   }

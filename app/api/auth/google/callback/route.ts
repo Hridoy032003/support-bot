@@ -58,7 +58,11 @@ export async function GET(request: Request) {
   const res = NextResponse.redirect(`${appOrigin(request)}${safeNextPath(rawNext)}`);
   res.cookies.set(
     SESSION_COOKIE,
-    createSessionToken({ email: info.email, name: info.name ?? info.email }),
+    createSessionToken({
+      email: info.email,
+      name: info.name ?? info.email,
+      picture: typeof info.picture === "string" ? info.picture : undefined,
+    }),
     sessionCookieOptions
   );
   res.cookies.delete("oauth_state");
