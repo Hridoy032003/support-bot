@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getEvents } from "@/lib/events";
 import { getSession } from "@/lib/session";
 import { Avatar } from "@/components/avatar";
+import { AssignedTasks, AssignedTasksSkeleton } from "@/components/assigned-tasks";
 import { SiteHeader } from "@/components/site-header";
 
 function timeAgo(iso: string): string {
@@ -41,6 +42,11 @@ async function DashboardContent() {
           </span>
         </div>
 
+        <Suspense fallback={<AssignedTasksSkeleton />}>
+          <AssignedTasks email={session.email} />
+        </Suspense>
+
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Recent alerts</h2>
         {events.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             No alerts yet. They&apos;ll show up here as ClickUp sends them.
