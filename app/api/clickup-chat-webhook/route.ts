@@ -47,6 +47,31 @@ async function resolveUsername(userId: string | number | undefined): Promise<str
   }
 }
 
+const channelNameCache = new Map<string, string>();
+
+async function resolveChannelName(channelId: string): Promise<string> {
+  if (!channelId || !CLICKUP_API_TOKEN || !CLICKUP_TEAM_ID) return "";
+  const cached = channelNameCache.get(channelId);
+  if (cached) return cached;
+  try {
+    const res = await fetch(
+      `https://api.clickup.com/api/v3/workspaces/${CLICKUP_TEAM_ID}/chat/channels/${channelId}`,
+      { headers: { Authorization: CLICKUP_API_TOKEN } }
+    );
+    if (!res.ok) {
+      console.error("Channel name lookup failed:", res.status, await res.text());
+      return "";
+    }
+    const json = await res.json();
+    const name: string = json?.data?.name ?? json?.name ?? "";
+    if (name) channelNameCache.set(channelId, name);
+    return name;
+  } catch (err) {
+    console.error("Channel name lookup error:", err);
+    return "";
+  }
+}
+
 export async function POST(request: Request) {
   const providedSecret = request.headers.get("x-webhook-secret");
   if (!CHAT_WEBHOOK_SECRET || providedSecret !== CHAT_WEBHOOK_SECRET) {
@@ -72,7 +97,11 @@ export async function POST(request: Request) {
 
   const channelId: string = data.parent ?? "";
   const text: string = data.text_content || "(no text found)";
-  const username = await resolveUsername(data.userid);
+  const [username, channelName] = await Promise.all([
+    resolveUsername(data.userid),
+    resolveChannelName(channelId),
+  ]);
+  const channelLabel = channelName || "Unknown channel";
   const channelLink = channelId
     ? `https://app.clickup.com/${CLICKUP_TEAM_ID}/chat/r/${channelId}`
     : "";
@@ -123,6 +152,7 @@ export async function POST(request: Request) {
       ? [
           "🚨 <b>CLICKUP ALERT</b> 🚨",
           "━━━━━━━━━━━━━━━",
+          `📢 <b>Channel:</b> ${escapeHtml(channelLabel)}`,
           `👤 <b>From:</b> ${escapeHtml(username)}`,
           `💬 <b>Message:</b> ${escapeHtml(text)}`,
           "━━━━━━━━━━━━━━━",
@@ -131,6 +161,7 @@ export async function POST(request: Request) {
         ]
       : [
           "🔔 <b>New ClickUp Chat message</b>",
+          `📢 <b>Channel:</b> ${escapeHtml(channelLabel)}`,
           `👤 ${escapeHtml(username)}`,
           `💬 ${escapeHtml(text)}`,
           channelLink ? `🔗 <a href="${channelLink}">Open channel</a>` : "",
